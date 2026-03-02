@@ -1,0 +1,26 @@
+[
+  {
+    "scenario_id": "wohnungsbrand_erwachsene_person",
+    "name": "Wohnungsbrand – erwachsene Person",
+    "injury_level": "mittel",
+    "stress_level": "hoch",
+    "speech_style": "kurze panische Antworten",
+    "ambient_cues": ["Hilfe!", "*hustet stark*", "Ich sehe nichts wegen dem Rauch!"]
+  },
+  {
+    "scenario_id": "kellerbrand_orientierungslos",
+    "name": "Kellerbrand – orientierungslose Person",
+    "injury_level": "hoch",
+    "stress_level": "sehr hoch",
+    "speech_style": "verwirrt und abgehackt",
+    "ambient_cues": ["Wo bin ich?", "Bitte helfen Sie mir!", "*keucht*"]
+  },
+  {
+    "scenario_id": "verkehrsunfall_verletzte_person",
+    "name": "Verkehrsunfall – verletzte Person",
+    "injury_level": "hoch",
+    "stress_level": "mittel",
+    "speech_style": "schmerzbetont aber kooperativ",
+    "ambient_cues": ["Mein Bein tut so weh!", "Ich kann mich kaum bewegen.", "Bitte lassen Sie mich nicht allein."]
+  }
+]
