@@ -43,12 +43,31 @@ class ApiIntegrationTests(unittest.TestCase):
             html = response.read().decode("utf-8")
         self.assertIn("FireAI Bedienoberfläche", html)
 
-    def test_audio_settings_connection_test_endpoint(self):
-        req = Request(
+    def test_audio_settings_and_connection_test_endpoints(self):
+        with urlopen(f"http://127.0.0.1:{self.port}/settings/audio") as response:
+            settings = json.loads(response.read().decode("utf-8"))["audio_settings"]
+        self.assertIn("available_devices", settings)
+
+        update_req = Request(
+            f"http://127.0.0.1:{self.port}/settings/audio",
+            data=json.dumps(
+                {
+                    "bluetooth_device_name": "Rescue Headset B",
+                    "microphone_device": "Rescue Headset B",
+                    "speaker_device": "Rescue Headset B",
+                }
+            ).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="PUT",
+        )
+        with urlopen(update_req) as response:
+            updated = json.loads(response.read().decode("utf-8"))["audio_settings"]
+        self.assertEqual(updated["active"]["bluetooth_device_name"], "Rescue Headset B")
+
+        test_req = Request(
             f"http://127.0.0.1:{self.port}/settings/audio-test",
             data=json.dumps(
                 {
-                    "bluetooth_device_name": "Rescue Headset",
                     "mic_connected": False,
                     "speaker_connected": True,
                 }
@@ -56,7 +75,7 @@ class ApiIntegrationTests(unittest.TestCase):
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urlopen(req) as response:
+        with urlopen(test_req) as response:
             payload = json.loads(response.read().decode("utf-8"))["audio_test"]
 
         self.assertEqual(payload["overall"], "failed")
