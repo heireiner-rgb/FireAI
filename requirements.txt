@@ -1,0 +1,2 @@
+# FireAI prototype currently uses Python standard library only.
+# Add external dependencies here when integrating real Bluetooth/STT/TTS SDKs.
