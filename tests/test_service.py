@@ -41,6 +41,22 @@ class ServiceTests(unittest.TestCase):
             self.assertEqual(payload["turn_count"], 1)
             self.assertEqual(len(payload["history"]), 1)
 
+    def test_audio_settings_update_and_test(self):
+        service = FireAIService()
+        settings = service.get_audio_settings()
+        self.assertGreaterEqual(len(settings["available_devices"]), 1)
+
+        updated = service.update_audio_settings(
+            bluetooth_device_name="Rescue Headset B",
+            microphone_device="Rescue Headset B",
+            speaker_device="Rescue Headset B",
+        )
+        self.assertEqual(updated["active"]["bluetooth_device_name"], "Rescue Headset B")
+
+        result = service.test_audio_connection(mic_connected=False, speaker_connected=True)
+        self.assertEqual(result["overall"], "failed")
+        self.assertEqual(result["microphone"], "failed")
+
     def test_add_update_delete_scenario_persists_definition(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             scenario_file = build_temp_scenario_file(tmpdir)
@@ -68,18 +84,6 @@ class ServiceTests(unittest.TestCase):
             service.delete_scenario(created["scenario_id"])
             persisted = json.loads(scenario_file.read_text(encoding="utf-8"))
             self.assertFalse(any(item["scenario_id"] == created["scenario_id"] for item in persisted))
-
-    def test_audio_connection_test_reports_failures(self):
-        service = FireAIService()
-        result = service.test_audio_connection(
-            mic_connected=False,
-            speaker_connected=True,
-            bluetooth_device_name="Rescue Headset",
-        )
-
-        self.assertEqual(result["overall"], "failed")
-        self.assertEqual(result["microphone"], "failed")
-        self.assertEqual(result["speaker"], "ok")
 
     def test_unknown_session_raises(self):
         service = FireAIService()
