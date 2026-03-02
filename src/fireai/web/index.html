@@ -9,7 +9,7 @@
     .container { max-width: 920px; margin: 0 auto; padding: 24px; }
     h1 { margin-top: 0; }
     .card { background: #1a2330; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     input, select, button, textarea { padding: 10px; border-radius: 8px; border: none; }
     input, select, textarea { min-width: 220px; }
     textarea { width: 100%; min-height: 80px; }
@@ -23,17 +23,22 @@
 <body>
   <div class="container">
     <h1>🔥 FireAI Bedienoberfläche</h1>
-    <p class="muted">Szenario erstellen/bearbeiten, starten, mit der Übungspuppe interagieren und Session speichern.</p>
-
+    <p class="muted">Szenario erstellen/bearbeiten, Audio-Einstellungen testen und Sessions durchführen.</p>
 
     <div class="card">
-      <h3>Einstellungen: Mikro-/Speaker-Verbindung testen</h3>
+      <h3>Einstellungen: Mikro-/Speaker-Verbindung</h3>
       <div class="row">
-        <input id="btDeviceName" placeholder="Bluetooth-Gerätename" value="Bluetooth Audio Device" />
+        <select id="btDeviceName"></select>
+        <select id="micDevice"></select>
+        <select id="speakerDevice"></select>
+        <button id="saveAudioSettingsButton">Audio-Einstellungen speichern</button>
+      </div>
+      <div class="row">
         <label><input type="checkbox" id="micConnected" checked /> Mikrofon verbunden</label>
         <label><input type="checkbox" id="speakerConnected" checked /> Speaker verbunden</label>
         <button id="audioTestButton">Verbindung testen</button>
       </div>
+      <p class="muted" id="audioSettingsInfo"></p>
       <p class="muted" id="audioTestInfo"></p>
     </div>
 
@@ -95,6 +100,7 @@
     const sessionInfo = document.getElementById('sessionInfo');
     const saveInfo = document.getElementById('saveInfo');
     const scenarioCreateInfo = document.getElementById('scenarioCreateInfo');
+    const audioSettingsInfo = document.getElementById('audioSettingsInfo');
     const audioTestInfo = document.getElementById('audioTestInfo');
     const logEl = document.getElementById('log');
     const sendButton = document.getElementById('sendButton');
@@ -123,6 +129,49 @@
       document.getElementById('newCues').value = scenario.ambient_cues.join(', ');
     }
 
+    async function loadAudioSettings() {
+      const res = await fetch('/settings/audio');
+      const data = await res.json();
+      const settings = data.audio_settings;
+      const selects = [
+        document.getElementById('btDeviceName'),
+        document.getElementById('micDevice'),
+        document.getElementById('speakerDevice'),
+      ];
+
+      selects.forEach((el) => { el.innerHTML = ''; });
+      settings.available_devices.forEach((device) => {
+        selects.forEach((el) => {
+          const opt = document.createElement('option');
+          opt.value = device;
+          opt.textContent = device;
+          el.appendChild(opt);
+        });
+      });
+
+      document.getElementById('btDeviceName').value = settings.active.bluetooth_device_name;
+      document.getElementById('micDevice').value = settings.active.microphone_device;
+      document.getElementById('speakerDevice').value = settings.active.speaker_device;
+    }
+
+    async function saveAudioSettings() {
+      const payload = {
+        bluetooth_device_name: document.getElementById('btDeviceName').value,
+        microphone_device: document.getElementById('micDevice').value,
+        speaker_device: document.getElementById('speakerDevice').value,
+      };
+
+      const res = await fetch('/settings/audio', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      audioSettingsInfo.textContent = res.ok
+        ? `Gespeichert: BT=${data.audio_settings.active.bluetooth_device_name}, Mic=${data.audio_settings.active.microphone_device}, Speaker=${data.audio_settings.active.speaker_device}`
+        : `Fehler: ${data.error}`;
+    }
+
     async function loadScenarios() {
       const res = await fetch('/scenarios');
       const data = await res.json();
@@ -145,10 +194,9 @@
       });
     }
 
-
     async function runAudioConnectionTest() {
       const payload = {
-        bluetooth_device_name: document.getElementById('btDeviceName').value.trim() || 'Bluetooth Audio Device',
+        bluetooth_device_name: document.getElementById('btDeviceName').value,
         mic_connected: document.getElementById('micConnected').checked,
         speaker_connected: document.getElementById('speakerConnected').checked,
       };
@@ -269,6 +317,7 @@
       saveInfo.textContent = `Gespeichert unter: ${data.path}`;
     }
 
+    document.getElementById('saveAudioSettingsButton').addEventListener('click', saveAudioSettings);
     document.getElementById('audioTestButton').addEventListener('click', runAudioConnectionTest);
     document.getElementById('addScenarioButton').addEventListener('click', addScenario);
     document.getElementById('updateScenarioButton').addEventListener('click', updateScenario);
@@ -281,6 +330,7 @@
       if (e.key === 'Enter') sendMessage();
     });
 
+    loadAudioSettings();
     loadScenarios();
   </script>
 </body>
