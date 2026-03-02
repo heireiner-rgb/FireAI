@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FireAI Konsole</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #10151c; color: #ecf0f1; }
+    .container { max-width: 920px; margin: 0 auto; padding: 24px; }
+    h1 { margin-top: 0; }
+    .card { background: #1a2330; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    input, select, button, textarea { padding: 10px; border-radius: 8px; border: none; }
+    input, select, textarea { min-width: 220px; }
+    textarea { width: 100%; min-height: 80px; }
+    button { background: #d35400; color: #fff; cursor: pointer; }
+    button.danger { background: #922b21; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    #log { white-space: pre-wrap; max-height: 320px; overflow-y: auto; background: #111821; padding: 12px; border-radius: 8px; }
+    .muted { color: #95a5a6; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔥 FireAI Bedienoberfläche</h1>
+    <p class="muted">Szenario erstellen/bearbeiten, starten, mit der Übungspuppe interagieren und Session speichern.</p>
+
+
+    <div class="card">
+      <h3>Einstellungen: Mikro-/Speaker-Verbindung testen</h3>
+      <div class="row">
+        <input id="btDeviceName" placeholder="Bluetooth-Gerätename" value="Bluetooth Audio Device" />
+        <label><input type="checkbox" id="micConnected" checked /> Mikrofon verbunden</label>
+        <label><input type="checkbox" id="speakerConnected" checked /> Speaker verbunden</label>
+        <button id="audioTestButton">Verbindung testen</button>
+      </div>
+      <p class="muted" id="audioTestInfo"></p>
+    </div>
+
+    <div class="card">
+      <h3>0) Szenario verwalten</h3>
+      <div class="row">
+        <select id="editScenarioSelect"></select>
+        <button id="loadScenarioButton">In Formular laden</button>
+      </div>
+      <div class="row">
+        <input id="newName" placeholder="Name (z. B. Küchenbrand)" />
+        <input id="newInjury" placeholder="Verletzungsgrad" />
+        <input id="newStress" placeholder="Stresslevel" />
+        <input id="newSpeech" placeholder="Sprachstil" />
+      </div>
+      <textarea id="newCues" placeholder="Ambient-Cues, kommasepariert (z. B. Hilfe!, *hustet*, Mir ist schwindelig)"></textarea>
+      <div class="row">
+        <button id="addScenarioButton">Neu speichern</button>
+        <button id="updateScenarioButton">Ausgewähltes Szenario aktualisieren</button>
+        <button id="deleteScenarioButton" class="danger">Ausgewähltes Szenario löschen</button>
+      </div>
+      <p class="muted" id="scenarioCreateInfo"></p>
+    </div>
+
+    <div class="card">
+      <h3>1) Szenario wählen & Session starten</h3>
+      <div class="row">
+        <select id="scenarioSelect"></select>
+        <button id="startButton">Session starten</button>
+      </div>
+      <p class="muted" id="sessionInfo">Keine aktive Session.</p>
+    </div>
+
+    <div class="card">
+      <h3>2) Kommunikation</h3>
+      <div class="row">
+        <input id="messageInput" placeholder="z. B. Können Sie atmen?" />
+        <button id="sendButton" disabled>Senden</button>
+      </div>
+      <div id="log"></div>
+    </div>
+
+    <div class="card">
+      <h3>3) Debriefing speichern</h3>
+      <div class="row">
+        <input id="savePathInput" placeholder="Optionaler Pfad, z. B. exports/ui-log.json" />
+        <button id="saveButton" disabled>Session speichern</button>
+      </div>
+      <p class="muted" id="saveInfo"></p>
+    </div>
+  </div>
+
+  <script>
+    let sessionId = null;
+    let scenariosCache = [];
+
+    const scenarioSelect = document.getElementById('scenarioSelect');
+    const editScenarioSelect = document.getElementById('editScenarioSelect');
+    const sessionInfo = document.getElementById('sessionInfo');
+    const saveInfo = document.getElementById('saveInfo');
+    const scenarioCreateInfo = document.getElementById('scenarioCreateInfo');
+    const audioTestInfo = document.getElementById('audioTestInfo');
+    const logEl = document.getElementById('log');
+    const sendButton = document.getElementById('sendButton');
+    const saveButton = document.getElementById('saveButton');
+
+    function appendLog(text) {
+      logEl.textContent += text + '\n';
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function formPayload() {
+      return {
+        name: document.getElementById('newName').value.trim(),
+        injury_level: document.getElementById('newInjury').value.trim(),
+        stress_level: document.getElementById('newStress').value.trim(),
+        speech_style: document.getElementById('newSpeech').value.trim(),
+        ambient_cues: document.getElementById('newCues').value.trim(),
+      };
+    }
+
+    function fillFormFromScenario(scenario) {
+      document.getElementById('newName').value = scenario.name;
+      document.getElementById('newInjury').value = scenario.injury_level;
+      document.getElementById('newStress').value = scenario.stress_level;
+      document.getElementById('newSpeech').value = scenario.speech_style;
+      document.getElementById('newCues').value = scenario.ambient_cues.join(', ');
+    }
+
+    async function loadScenarios() {
+      const res = await fetch('/scenarios');
+      const data = await res.json();
+      scenariosCache = data.scenarios;
+      scenarioSelect.innerHTML = '';
+      editScenarioSelect.innerHTML = '';
+
+      scenariosCache.forEach((s) => {
+        const label = `${s.name} (Verletzung: ${s.injury_level}, Stress: ${s.stress_level})`;
+
+        const startOpt = document.createElement('option');
+        startOpt.value = s.scenario_id;
+        startOpt.textContent = label;
+        scenarioSelect.appendChild(startOpt);
+
+        const editOpt = document.createElement('option');
+        editOpt.value = s.scenario_id;
+        editOpt.textContent = label;
+        editScenarioSelect.appendChild(editOpt);
+      });
+    }
+
+
+    async function runAudioConnectionTest() {
+      const payload = {
+        bluetooth_device_name: document.getElementById('btDeviceName').value.trim() || 'Bluetooth Audio Device',
+        mic_connected: document.getElementById('micConnected').checked,
+        speaker_connected: document.getElementById('speakerConnected').checked,
+      };
+
+      const res = await fetch('/settings/audio-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        audioTestInfo.textContent = `Fehler: ${data.error || 'Audio-Test fehlgeschlagen'}`;
+        return;
+      }
+      const details = (data.audio_test.details || []).join(' ');
+      audioTestInfo.textContent = `Ergebnis: ${data.audio_test.overall} | Mic: ${data.audio_test.microphone} | Speaker: ${data.audio_test.speaker}. ${details}`;
+    }
+
+    async function addScenario() {
+      const payload = formPayload();
+      if (!payload.name || !payload.injury_level || !payload.stress_level || !payload.speech_style || !payload.ambient_cues) {
+        scenarioCreateInfo.textContent = 'Bitte alle Felder ausfüllen.';
+        return;
+      }
+      const res = await fetch('/scenarios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      scenarioCreateInfo.textContent = res.ok ? `Szenario erstellt: ${data.scenario.name}` : `Fehler: ${data.error}`;
+      if (res.ok) {
+        await loadScenarios();
+        editScenarioSelect.value = data.scenario.scenario_id;
+        scenarioSelect.value = data.scenario.scenario_id;
+      }
+    }
+
+    async function updateScenario() {
+      const scenario_id = editScenarioSelect.value;
+      const payload = formPayload();
+      const res = await fetch(`/scenarios/${scenario_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      scenarioCreateInfo.textContent = res.ok ? `Szenario aktualisiert: ${data.scenario.name}` : `Fehler: ${data.error}`;
+      if (res.ok) {
+        await loadScenarios();
+        editScenarioSelect.value = scenario_id;
+        scenarioSelect.value = scenario_id;
+      }
+    }
+
+    async function deleteScenario() {
+      const scenario_id = editScenarioSelect.value;
+      const res = await fetch(`/scenarios/${scenario_id}`, { method: 'DELETE' });
+      const data = await res.json();
+      scenarioCreateInfo.textContent = res.ok ? `Szenario gelöscht: ${data.deleted}` : `Fehler: ${data.error}`;
+      if (res.ok) {
+        await loadScenarios();
+      }
+    }
+
+    function loadSelectedScenarioIntoForm() {
+      const selected = scenariosCache.find((item) => item.scenario_id === editScenarioSelect.value);
+      if (selected) {
+        fillFormFromScenario(selected);
+        scenarioCreateInfo.textContent = `Szenario geladen: ${selected.name}`;
+      }
+    }
+
+    async function startSession() {
+      const scenario_id = scenarioSelect.value;
+      const res = await fetch('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenario_id })
+      });
+      const data = await res.json();
+      sessionId = data.session_id;
+      sessionInfo.textContent = `Aktive Session: ${sessionId}`;
+      sendButton.disabled = false;
+      saveButton.disabled = false;
+      logEl.textContent = '';
+      appendLog(`Session gestartet für Szenario: ${data.scenario.name}`);
+    }
+
+    async function sendMessage() {
+      if (!sessionId) return;
+      const input = document.getElementById('messageInput');
+      const caregiver_text = input.value.trim();
+      if (!caregiver_text) return;
+
+      const res = await fetch(`/sessions/${sessionId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caregiver_text })
+      });
+      const data = await res.json();
+      appendLog(`Betreuer: ${caregiver_text}`);
+      appendLog(`Puppe Cue: ${data.turn.ambient_cue}`);
+      appendLog(`Puppe KI: ${data.turn.patient_response}`);
+      appendLog('---');
+      input.value = '';
+    }
+
+    async function saveSession() {
+      if (!sessionId) return;
+      const path = document.getElementById('savePathInput').value.trim();
+      const res = await fetch(`/sessions/${sessionId}/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(path ? { path } : {})
+      });
+      const data = await res.json();
+      saveInfo.textContent = `Gespeichert unter: ${data.path}`;
+    }
+
+    document.getElementById('audioTestButton').addEventListener('click', runAudioConnectionTest);
+    document.getElementById('addScenarioButton').addEventListener('click', addScenario);
+    document.getElementById('updateScenarioButton').addEventListener('click', updateScenario);
+    document.getElementById('deleteScenarioButton').addEventListener('click', deleteScenario);
+    document.getElementById('loadScenarioButton').addEventListener('click', loadSelectedScenarioIntoForm);
+    document.getElementById('startButton').addEventListener('click', startSession);
+    document.getElementById('sendButton').addEventListener('click', sendMessage);
+    document.getElementById('saveButton').addEventListener('click', saveSession);
+    document.getElementById('messageInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    loadScenarios();
+  </script>
+</body>
+</html>
