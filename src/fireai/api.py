@@ -31,6 +31,9 @@ class FireAIRequestHandler(BaseHTTPRequestHandler):
         if self.path == "/scenarios":
             self._write_json(HTTPStatus.OK, {"scenarios": SERVICE.list_scenarios()})
             return
+        if self.path == "/settings/audio":
+            self._write_json(HTTPStatus.OK, {"audio_settings": SERVICE.get_audio_settings()})
+            return
         self._write_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
 
     def do_POST(self) -> None:  # noqa: N802
@@ -39,6 +42,15 @@ class FireAIRequestHandler(BaseHTTPRequestHandler):
             if self.path == "/scenarios":
                 created = SERVICE.add_scenario(**self._scenario_payload(payload, include_id=True))
                 self._write_json(HTTPStatus.CREATED, {"scenario": created})
+                return
+
+            if self.path == "/settings/audio-test":
+                result = SERVICE.test_audio_connection(
+                    mic_connected=bool(payload.get("mic_connected", True)),
+                    speaker_connected=bool(payload.get("speaker_connected", True)),
+                    bluetooth_device_name=payload.get("bluetooth_device_name"),
+                )
+                self._write_json(HTTPStatus.OK, {"audio_test": result})
                 return
 
             if self.path == "/sessions":
@@ -76,6 +88,16 @@ class FireAIRequestHandler(BaseHTTPRequestHandler):
                 updated = SERVICE.update_scenario(scenario_id, **self._scenario_payload(payload, include_id=False))
                 self._write_json(HTTPStatus.OK, {"scenario": updated})
                 return
+
+            if self.path == "/settings/audio":
+                settings = SERVICE.update_audio_settings(
+                    bluetooth_device_name=str(payload.get("bluetooth_device_name", "")),
+                    microphone_device=str(payload.get("microphone_device", "")),
+                    speaker_device=str(payload.get("speaker_device", "")),
+                )
+                self._write_json(HTTPStatus.OK, {"audio_settings": settings})
+                return
+
             self._write_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
         except ValueError as error:
             self._write_json(HTTPStatus.BAD_REQUEST, {"error": str(error)})
