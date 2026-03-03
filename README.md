@@ -1,114 +1,145 @@
 # FireAI – Kommunikations-App für Feuerwehrübungen
 
-## Ziel
-FireAI ist eine Smartphone-App für realitätsnahe Feuerwehrübungen mit Übungspuppen. 
-Die App verbindet eine **Bluetooth Speaker/Mikrofon-Kombination** mit dem Smartphone und ermöglicht:
+FireAI ist ein lauffähiger Prototyp für eine App, die die Kommunikation mit einer Übungspuppe simuliert.
+Der Fokus liegt auf einem **Szenario- und Dialogkern**, der später mit Bluetooth-Audio (Speaker/Mikrofon), STT und TTS verbunden werden kann.
 
-1. **Szenario-basierte Audio-Simulation** (Schreie, Hilferufe, Husten, Atemnot usw.).
-2. **Live-Kommunikation zwischen Betreuer und Übungspuppe** über die Speaker/Mikro-Einheit.
-3. **KI-Interaktion**: Wenn der Betreuer spricht, antwortet ein KI-gestützter Charakter passend zum gewählten Szenario.
+## Release-Status
 
----
+Der aktuelle Stand ist als **Prototype Release 0.1.0** veröffentlichbar für interne Tests und Demos.
 
-## Kernfunktionen
-
-### 1) Bluetooth-Audio-Anbindung
-- Koppeln der Speaker/Mikrofon-Kombi mit dem Smartphone.
-- Auswahl des aktiven Audio-Geräts in der App.
-- Audio-Routing:
-  - Ausgabe der Puppenstimme über den Speaker.
-  - Aufnahme der Betreuerstimme über das Mikrofon.
-
-### 2) Szenario-Auswahl
-Beispiele:
-- **Wohnungsbrand – erwachsene Person**
-- **Kellerbrand – orientierungslose Person**
-- **Verkehrsunfall – verletzte Person**
-- **Kind in Paniksituation**
-
-Pro Szenario konfigurierbar:
-- Verletzungsgrad / Bewusstseinslage
-- Schmerz- und Stresslevel
-- Sprachmuster (kurze Antworten, Panik, Verwirrung)
-- Hintergrundgeräusche (Rauch, Husten, Rufen)
-
-### 3) KI-Dialog mit Rollenverhalten
-- Speech-to-Text (STT) wandelt die Betreuerrede in Text um.
-- Dialog-KI erzeugt rollenkonforme Antwort basierend auf:
-  - Szenario
-  - Zustand der Übungspuppe
-  - Gesprächsverlauf
-- Text-to-Speech (TTS) erzeugt die passende Sprachausgabe.
-
-### 4) Simulierte Rufe und Schreie
-- Ereignisgesteuerte Audio-Cues (z. B. „Hilfe!“, Hustenanfälle, Schmerzlaute).
-- Dynamische Intensität je nach Szenariofortschritt.
-- Manuelle Trigger durch den Betreuer als Fallback.
+Enthalten:
+- CLI-Prototyp für schnelle Szenario-Durchläufe.
+- HTTP-API + Web-UI für Bedienung im Browser.
+- Szenario-CRUD inkl. Persistierung.
+- Audio-Settings (Geräteauswahl) + Mikro/Speaker Verbindungstest.
+- Session-Transcript-Export als JSON.
 
 ---
 
-## Beispiel-Architektur (MVP)
+## Projektstruktur
 
-### Mobile App (Flutter / React Native)
-- UI für Szenarioauswahl und Session-Steuerung
-- Bluetooth-Handling
-- Push-to-Talk / Freisprechmodus
-- Latenz- und Audio-Pegelanzeige
-
-### Backend (optional lokal/Cloud)
-- Session-Management
-- Szenario-Engine
-- KI-Orchestrierung (STT → LLM → TTS)
-- Logging für Nachbesprechung
-
-### KI-Komponenten
-- **STT**: z. B. Whisper oder Cloud-STT
-- **LLM**: Rollenprompt + Sicherheitsregeln
-- **TTS**: emotionsfähige Stimme (ruhig/panisch/schwach)
+- `app.py`: Startpunkt für den CLI-Prototyp.
+- `desktop_app.py`: Desktop-GUI (Tkinter) mit Szenarioverwaltung, Session-Chat und Audio-Einstellungen.
+- `src/fireai/scenarios.json`: Szenario-Definitionen.
+- `src/fireai/models.py`: Datenmodelle (`Scenario`, `SessionState`).
+- `src/fireai/dialogue.py`: Antwortlogik und Ambient-Cues.
+- `src/fireai/session.py`: Session-Orchestrierung und Transcript-Export.
+- `src/fireai/service.py`: In-Memory Service-Layer für Szenarien, Sessions und Audio-Settings.
+- `src/fireai/api.py`: HTTP-Server (REST-ähnliche Endpunkte + Web-UI-Auslieferung).
+- `src/fireai/web/index.html`: Web-Oberfläche.
+- `tests/`: Test-Suite.
+- `Makefile`: Standardbefehle (`test`, `run-api`, `run-cli`, `run-gui`).
+- `CHANGELOG.md`: Release-Historie.
+- `LICENSE`: MIT Lizenz.
 
 ---
 
-## Beispiel-Dialogfluss
-1. Betreuer startet Szenario „Kellerbrand“.
-2. App spielt initiale Rufe der Übungspuppe ab.
-3. Betreuer fragt: „Können Sie mich hören? Wo sind Sie verletzt?“
-4. STT transkribiert die Frage.
-5. KI generiert situative Antwort: „Ich... ich glaube mein Bein ist eingeklemmt... ich bekomme schlecht Luft...“
-6. TTS gibt die Antwort über den Bluetooth-Speaker aus.
-7. Szenario eskaliert oder beruhigt sich je nach Kommunikationsqualität.
+## Voraussetzungen
+
+- Python 3.10+
+- Keine externen Python-Abhängigkeiten im aktuellen Prototyp (nur Standardbibliothek)
+
+Optional:
+- `make`
 
 ---
 
-## Sicherheits- und Qualitätsanforderungen
-- Kein medizinischer Rat als Fakt, sondern simulationsgerechte Rollenantworten.
-- Moderationsfilter gegen unpassende Inhalte.
-- Offline-Fallback mit vordefinierten Phrasen bei Netzwerkausfall.
-- DSGVO-konforme Verarbeitung, möglichst ohne dauerhafte Speicherung personenbezogener Daten.
+## Schnellstart
+
+### API + Web-UI starten
+
+```bash
+make run-api
+```
+
+oder:
+
+```bash
+PYTHONPATH=src python -m fireai.api
+```
+
+Dann im Browser öffnen:
+- `http://127.0.0.1:8080/`
+
+### CLI starten
+
+```bash
+make run-cli
+```
+
+oder:
+
+```bash
+PYTHONPATH=src python app.py
+```
+
+### Desktop-GUI starten
+
+```bash
+make run-gui
+```
+
+oder:
+
+```bash
+PYTHONPATH=src python desktop_app.py
+```
+
+Die GUI bietet:
+- Szenarien anlegen, bearbeiten, löschen
+- Session starten und Nachrichten simulieren
+- Audio-Einstellungen wählen und Verbindung testen
 
 ---
 
-## MVP-Roadmap
+## API-Endpunkte
 
-### Phase 1
-- Bluetooth-Audio-Verbindung stabilisieren
-- 2–3 feste Szenarien
-- Vorgefertigte Audio-Cues + einfache KI-Antworten
-
-### Phase 2
-- Dynamische Zustandsmaschine im Szenario
-- Verbesserte TTS-Stimmen (Emotionen)
-- Debrief-Ansicht mit Kommunikationsverlauf
-
-### Phase 3
-- Mehrsprachigkeit
-- Multi-Rollen-Übungen (mehrere Verletzte)
-- Bewertungssystem für Ausbildungserfolg
+- `GET /health`
+- `GET /scenarios`
+- `POST /scenarios`
+- `PUT /scenarios/<scenario_id>`
+- `DELETE /scenarios/<scenario_id>`
+- `GET /settings/audio`
+- `PUT /settings/audio`
+- `POST /settings/audio-test`
+- `POST /sessions`
+- `POST /sessions/<session_id>/messages`
+- `POST /sessions/<session_id>/save`
 
 ---
 
-## Nächste Umsetzungsschritte
-1. Technologie-Entscheidung für Mobile-Stack (Flutter oder React Native).
-2. Auswahl von STT/TTS/LLM-Anbietern nach Latenz und Offline-Fähigkeit.
-3. Definition eines Szenario-Datenmodells (JSON-basiert).
-4. Prototyp mit einem End-to-End-Szenario und realer Bluetooth-Hardware.
+## Tests
 
+```bash
+make test
+```
+
+oder:
+
+```bash
+PYTHONPATH=src python -m unittest discover -s tests
+```
+
+---
+
+## Veröffentlichungs-Checkliste
+
+1. Tests grün ausführen (`make test`).
+2. API lokal starten und `/health` prüfen.
+3. Optional: Demo-Flow im Browser durchspielen.
+4. Tag/Release Notes aus `CHANGELOG.md` übernehmen.
+5. Repo nach GitHub pushen:
+
+```bash
+git remote add origin <dein-repo-url>
+git push -u origin work
+```
+
+---
+
+## Nächste technische Schritte
+
+1. Echtes Bluetooth-Audio-Routing im Mobile Client.
+2. STT/TTS Integration (lokal oder Cloud).
+3. LLM-Dialogmodell statt regelbasierter Antworten.
+4. Erweiterte Szenario-Zustandsmaschine (Vitals, Zeitverlauf, Debrief-Metriken).
